@@ -1,27 +1,20 @@
 import React from 'react';
-import ReportPage from './components/ReportPage'; // adjust path if needed
+import ReportPage from './components/ReportPage';
 
-const App = (props) => {
-  const {
-    preload,
-    budgetsData,
-    reportType,
-    currentBudgetId,
-    lastHistoricalMonth,
-    budgets,
-    availableReports
-  } = props;
-
+/**
+ * The App component is the main entry point.
+ * It receives props from Symfony via `data-*` attributes embedded in the HTML.
+ * These props are passed to ReportPage, which renders the UI.
+ */
+const App = ({ userId, companyId, budgetId }) => {
   return (
-    <ReportPage
-      preload={preload}
-      budgetsData={budgetsData}
-      reportType={reportType}
-      currentBudgetId={currentBudgetId}
-      lastHistoricalMonth={lastHistoricalMonth}
-      budgets={budgets}
-      availableReports={availableReports}
-    />
+    <div className="report-container bud-mt-sm">
+      <ReportPage
+        userId={userId}
+        companyId={companyId}
+        defaultBudgetId={budgetId}
+      />
+    </div>
   );
 };
 

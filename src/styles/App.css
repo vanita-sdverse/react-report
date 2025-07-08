@@ -44,3 +44,13 @@
 .bg-light-dark {
   background-color: #e0e0e0 !important; /* darker than Bootstrap's #f8f9fa */
 }
+
+body, form, fieldset, legend, input, select, option, textarea, button {
+  margin: 0;
+  font-size: 0.8rem !important;
+}
+
+.bud-table-data:first-child {
+  width: 40%;
+  font-size: 0.8rem !important;
+}

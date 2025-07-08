@@ -1,32 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-const rootEl = document.getElementById('root');
-const root = createRoot(rootEl);
+const el = document.getElementById('report-react-root');
+if (el) {
+  const userId = parseInt(el.dataset.userId);
+  const companyId = parseInt(el.dataset.companyId);
+  const budgetId = parseInt(el.dataset.budgetId);
+  const accessToken = el.dataset.accessToken;
 
-function Wrapper() {
-  const [payload, setPayload] = useState(null);
-
-  useEffect(() => {
-    function handleMessage(event) {
-      // Ignore Webpack or other noise
-      if (event.data?.type === 'webpackWarnings') return;
-
-      console.log('Received postMessage in iframe:', event.data);
-      setPayload(event.data);
-    }
-
-    window.addEventListener('message', handleMessage);
-
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  if (!payload) {
-    return <div>Waiting for report data...</div>;
+  if (accessToken) {
+    localStorage.setItem('access_token', accessToken);
   }
 
-  return <App {...payload} />;
+  const root = createRoot(el);
+  root.render(
+    <App userId={userId} companyId={companyId} budgetId={budgetId} />
+  );
 }
-
-root.render(<Wrapper />);

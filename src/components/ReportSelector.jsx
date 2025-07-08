@@ -1,83 +1,143 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const ReportSelector = ({
-    reportType, setReportType,
-    budgetId, setBudgetId,
-    startYear, setStartYear,
-    endYear, setEndYear,
-    historical, setHistorical,
-    budgets, availableReports,
-    budgetsData,
-    lastHistoricalMonth, // ✅ add this
-    onGenerate
+  payload,
+  setPayload,
+  userId,
+  budgets,
+  budgetsData,
+  availableReports,
+  lastHistoricalMonth,
+  onGenerate
 }) => {
+  const [yearOptions, setYearOptions] = useState([]);
 
-console.log('ReportSelector budgets:', budgets);
-console.log('ReportSelector availableReports:', availableReports);
-    const handleReportChange = (e) => {
-        setReportType(Number(e.target.value));
-    };
+  const handleChange = (key, value) => {
+    setPayload(prev => ({ ...prev, [key]: value }));
+  };
 
-    const handleBudgetChange = (e) => {
-        setBudgetId(e.target.value);
-    };
+  // Update year options when budget or report type changes
+  useEffect(() => {
+    const range = budgetsData?.[payload.budget_id]?.availableDatesForReports?.[payload.report_type];
+    if (range) {
+      const { from, to } = range;
+      const list = Array.from({ length: to - from + 1 }, (_, i) => from + i);
+      setYearOptions(list);
+    } else {
+      setYearOptions([]);
+    }
+  }, [payload.budget_id, payload.report_type, budgetsData]);
 
-    const handleStartYearChange = (e) => {
-        setStartYear(Number(e.target.value));
-    };
+  // Auto-select default years similar to Symfony behavior
+  useEffect(() => {
+    if (yearOptions.length > 0) {
+      const to = yearOptions[yearOptions.length - 1];
+      const from = Math.max(to - 9, yearOptions[0]);
 
-    const handleEndYearChange = (e) => {
-        setEndYear(Number(e.target.value));
-    };
+      setPayload(prev => ({
+        ...prev,
+        from_year: prev.from_year ?? from,
+        to_year: prev.to_year ?? to,
+      }));
+    }
+  }, [yearOptions]);
 
-    const handleHistoricalChange = (e) => {
-        const val = e.target.value;
-        setHistorical(val === '' ? null : val);
-      };
+  const translateLabel = (key) => {
+    switch (key) {
+      case 'budget.analysis.reports.profitAndLoss': return 'Profit & Loss';
+      case 'budget.analysis.reports.cashflow': return 'Cash Flow';
+      case 'budget.analysis.reports.balanceSheet': return 'Balance Sheet';
+      default: return key;
+    }
+  };
 
-    const dateOptions = (budgetId, reportType) => {
-        const range = budgetsData[budgetId]?.availableDatesForReports?.[reportType] || {};
-        const { from = 2020, to = 2025 } = range;
-        const years = [];
-        for (let y = from; y <= to; y++) years.push(y);
-        return years;
-    };
+  return (
+    <div id="report-container" className="bud-mt-sm">
+      <div id="report-param-container" style={{ height: 30, marginBottom: 17, marginTop: -10 }}>
+        <div className="bud-flex-inline bud-w-100" style={{ height: 30 }}>
+          <div className="bud-flex-inline">
 
-    const years = dateOptions(budgetId, reportType);
-
-    return (
-        <div className="report-selector">
-            <select value={reportType} onChange={handleReportChange} id="report-type-select">
-                {Object.entries(availableReports).map(([label, val]) => (
-                    <option key={val} value={val}>{label}</option>
-                ))}
-            </select>
-            <div class="question-label-container"><p class="select-label">Budget</p></div>
-            <select value={budgetId ?? ''} onChange={handleBudgetChange} id='budgets-select'>
-                <option value="">Select Budget</option>
-                {Object.entries(budgets).map(([id, name]) => (
-                    <option key={id} value={id}>{name}</option>
-                ))}
-            </select>
-            <select value={startYear ?? ''} onChange={handleStartYearChange} id='starting-year-select'>
-            <option value="">Select Start Year</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-
-            <select value={endYear ?? ''} onChange={handleEndYearChange} id='ending-year-select'>
-            <option value="">Select End Year</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <div className="question-label-container" style={{ margin: '0 10px' }}>
+              <p className="select-label">Report</p>
+            </div>
             <select
-  value={historical ?? ''}
-  onChange={handleHistoricalChange}
->
-  <option value="">None</option>
-                <option value={lastHistoricalMonth}>{lastHistoricalMonth}</option>
+              value={payload.report_type}
+              onChange={(e) => handleChange('report_type', Number(e.target.value))}
+            >
+              {Object.entries(availableReports).map(([label, val]) =>
+                <option key={val} value={val}>{translateLabel(label)}</option>
+              )}
             </select>
-            <button onClick={onGenerate}>Generate Report</button>
+
+            <div className="question-label-container">
+              <p className="select-label">Budget</p>
+            </div>
+            <select
+              value={payload.budget_id}
+              onChange={(e) => handleChange('budget_id', e.target.value)}
+            >
+              <option value="">Select Budget</option>
+              {Object.entries(budgets).map(([id, name]) =>
+                <option key={id} value={id}>{name}</option>
+              )}
+            </select>
+
+            <div className="bud-flex-inline">
+              <div className="question-label-container">
+                <p className="select-label">Starting</p>
+              </div>
+              <select
+                value={payload.from_year ?? ''}
+                onChange={(e) => handleChange('from_year', Number(e.target.value))}
+              >
+                <option value="">Start Year</option>
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            <div className="bud-flex-inline">
+              <div className="question-label-container">
+                <p className="select-label">Ending</p>
+              </div>
+              <select
+                value={payload.to_year ?? ''}
+                onChange={(e) => handleChange('to_year', Number(e.target.value))}
+              >
+                <option value="">End Year</option>
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            <div className="bud-flex-inline">
+              <div className="question-label-container" style={{ marginRight: 12 }}>
+                <p className="select-label" style={{ marginRight: 14 }}>Historical</p>
+                <button type="button"
+                  className="help help‑historical‑dashboard help‑historical‑report"
+                  title="Explanation of historical data"
+                />
+              </div>
+              <select
+                value={payload.last_month ?? ''}
+                onChange={(e) => handleChange('last_month', Number(e.target.value))}
+              >
+                <option value="">None</option>
+                {lastHistoricalMonth && <option value={lastHistoricalMonth}>{lastHistoricalMonth}</option>}
+              </select>
+            </div>
+
+            <button
+              className="button button--large button--green"
+              style={{ marginLeft: 30 }}
+              onClick={onGenerate}
+            >
+              Generate
+            </button>
+          </div>
         </div>
-    );
+      </div>
+      <hr className="hr-analysis" />
+    </div>
+  );
 };
 
 export default ReportSelector;
