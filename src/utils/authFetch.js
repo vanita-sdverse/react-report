@@ -18,7 +18,7 @@ export async function authFetch(url, options = {}) {
     if (res.status === 401) {
       console.warn('Access token expired, attempting refresh…');
   
-      const refreshRes = await fetch('/analysis/report/api/token/refresh', {
+      const refreshRes = await fetch('/app.php/analysis/report/api/token/refresh', {
         method: 'GET',
         credentials: 'include', // Only if cookies used
       });
@@ -36,7 +36,7 @@ export async function authFetch(url, options = {}) {
       } else {
         console.error('Refresh token failed. Redirecting to login.');
         localStorage.clear();
-        window.location.href = '/app_dev.php/en/login'; // adjust this if you're using prod or `/login`
+        window.location.href = '/app.php/en/login'; // adjust this if you're using prod or `/login`
         return;
       }
     }

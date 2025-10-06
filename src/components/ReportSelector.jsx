@@ -8,7 +8,8 @@ const ReportSelector = ({
   budgetsData,
   availableReports,
   lastHistoricalMonth,
-  onGenerate
+  onGenerate,
+  apiYearRange // Add this new prop
 }) => {
   const [yearOptions, setYearOptions] = useState([]);
 
@@ -16,31 +17,57 @@ const ReportSelector = ({
     setPayload(prev => ({ ...prev, [key]: value }));
   };
 
-  // Update year options when budget or report type changes
+  // Generate year options based on API response or default range
   useEffect(() => {
-    const range = budgetsData?.[payload.budget_id]?.availableDatesForReports?.[payload.report_type];
-    if (range) {
-      const { from, to } = range;
-      const list = Array.from({ length: to - from + 1 }, (_, i) => from + i);
+    let fromYear, toYear;
+
+    // First try to get years from the API response
+    if (apiYearRange && apiYearRange.from_year && apiYearRange.to_year) {
+      fromYear = apiYearRange.from_year;
+      toYear = apiYearRange.to_year;
+    }
+    // Fallback to payload if available
+    else if (payload.from_year && payload.to_year) {
+      fromYear = payload.from_year;
+      toYear = payload.to_year;
+    }
+    // Default range if nothing else works
+    else {
+      const currentYear = new Date().getFullYear();
+      fromYear = currentYear - 1;
+      toYear = currentYear + 10;
+    }
+
+    // Generate year options
+    if (fromYear && toYear && fromYear <= toYear) {
+      const list = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
       setYearOptions(list);
-    } else {
-      setYearOptions([]);
+      
+      // Auto-select default years if not already set
+      if (!payload.from_year || !payload.to_year) {
+        const defaultTo = toYear;
+        const defaultFrom = Math.max(toYear - 9, fromYear); // Show last 10 years or available range
+        
+        setPayload(prev => ({
+          ...prev,
+          from_year: prev.from_year || defaultFrom,
+          to_year: prev.to_year || defaultTo,
+        }));
+      }
     }
-  }, [payload.budget_id, payload.report_type, budgetsData]);
+  }, [apiYearRange, payload.budget_id, payload.report_type]);
 
-  // Auto-select default years similar to Symfony behavior
-  useEffect(() => {
-    if (yearOptions.length > 0) {
-      const to = yearOptions[yearOptions.length - 1];
-      const from = Math.max(to - 9, yearOptions[0]);
+  // Generate filtered year options for ending year
+  const getEndingYearOptions = () => {
+    if (!payload.from_year) return yearOptions;
+    return yearOptions.filter(year => year >= parseInt(payload.from_year));
+  };
 
-      setPayload(prev => ({
-        ...prev,
-        from_year: prev.from_year ?? from,
-        to_year: prev.to_year ?? to,
-      }));
-    }
-  }, [yearOptions]);
+  // Generate filtered year options for starting year
+  const getStartingYearOptions = () => {
+    if (!payload.to_year) return yearOptions;
+    return yearOptions.filter(year => year <= parseInt(payload.to_year));
+  };
 
   const translateLabel = (key) => {
     switch (key) {
@@ -49,6 +76,30 @@ const ReportSelector = ({
       case 'budget.analysis.reports.balanceSheet': return 'Balance Sheet';
       default: return key;
     }
+  };
+
+  // Handle starting year change
+  const handleStartingYearChange = (value) => {
+    const startYear = Number(value);
+    let updatedPayload = { from_year: startYear };
+    
+    if (payload.to_year && payload.to_year < startYear) {
+      updatedPayload.to_year = startYear;
+    }
+    
+    setPayload(prev => ({ ...prev, ...updatedPayload }));
+  };
+
+  // Handle ending year change
+  const handleEndingYearChange = (value) => {
+    const endYear = Number(value);
+    let updatedPayload = { to_year: endYear };
+    
+    if (payload.from_year && payload.from_year > endYear) {
+      updatedPayload.from_year = endYear;
+    }
+    
+    setPayload(prev => ({ ...prev, ...updatedPayload }));
   };
 
   return (
@@ -88,10 +139,13 @@ const ReportSelector = ({
               </div>
               <select
                 value={payload.from_year ?? ''}
-                onChange={(e) => handleChange('from_year', Number(e.target.value))}
+                onChange={(e) => handleStartingYearChange(e.target.value)}
+                disabled={yearOptions.length === 0}
               >
                 <option value="">Start Year</option>
-                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                {getStartingYearOptions().map(y => 
+                  <option key={`start-${y}`} value={y}>{y}</option>
+                )}
               </select>
             </div>
 
@@ -101,10 +155,13 @@ const ReportSelector = ({
               </div>
               <select
                 value={payload.to_year ?? ''}
-                onChange={(e) => handleChange('to_year', Number(e.target.value))}
+                onChange={(e) => handleEndingYearChange(e.target.value)}
+                disabled={yearOptions.length === 0}
               >
                 <option value="">End Year</option>
-                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                {getEndingYearOptions().map(y => 
+                  <option key={`end-${y}`} value={y}>{y}</option>
+                )}
               </select>
             </div>
 
@@ -129,6 +186,7 @@ const ReportSelector = ({
               className="button button--large button--green"
               style={{ marginLeft: 30 }}
               onClick={onGenerate}
+              disabled={!payload.budget_id || !payload.from_year || !payload.to_year}
             >
               Generate
             </button>
